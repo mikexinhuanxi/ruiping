@@ -1,0 +1,1948 @@
+f<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#080A10" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>滤镜啪嗒</title>
+  <meta name="description" content="手机端滤镜啪嗒，上传图片后用阿里云通义千问视觉模型生成娱乐化吐槽分析。" />
+  <style>
+    :root {
+      --bg: #F7F2E8;
+      --surface: #FFFDF7;
+      --surface-strong: #151515;
+      --text: #151515;
+      --inverse: #FFFDF7;
+      --muted: #6B6258;
+      --soft: #958A7D;
+      --line: rgba(21,21,21,.12);
+      --line-dark: rgba(255,253,247,.15);
+      --teal: #22CFC4;
+      --coral: #FF6F61;
+      --amber: #F6B63E;
+      --shadow: 0 22px 46px rgba(38,30,20,.14);
+      --radius: 24px;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      color: var(--text);
+      font-family: var(--sans);
+      background:
+        radial-gradient(circle at 8% 5%, rgba(34,207,196,.20), transparent 31%),
+        radial-gradient(circle at 92% 0%, rgba(255,111,97,.18), transparent 30%),
+        linear-gradient(180deg, #FBF8F0 0%, var(--bg) 100%);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background-image: linear-gradient(rgba(21,21,21,.035) 1px, transparent 1px);
+      background-size: 100% 34px;
+      opacity: .55;
+      pointer-events: none;
+    }
+
+    button, input, textarea, select { font: inherit; }
+    button { touch-action: manipulation; }
+
+    .app {
+      width: min(100%, 430px);
+      margin: 0 auto;
+      padding: calc(18px + env(safe-area-inset-top)) 18px calc(28px + env(safe-area-inset-bottom));
+    }
+
+    .input-view.hide { display: none !important; }
+
+    body.result-mode .app {
+      padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    }
+
+    .hero {
+      min-height: 38vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 24px 0 20px;
+    }
+
+    .badge {
+      width: fit-content;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,253,247,.72);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      box-shadow: 0 10px 24px rgba(38,30,20,.07);
+      backdrop-filter: blur(14px);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 99px;
+      background: var(--teal);
+      box-shadow: 0 0 0 5px rgba(34,207,196,.14);
+    }
+
+    h1 {
+      margin: 18px 0 10px;
+      font-size: clamp(46px, 16vw, 72px);
+      line-height: .93;
+      letter-spacing: 0;
+      font-weight: 950;
+    }
+
+    .grad {
+      background: linear-gradient(110deg, var(--teal), var(--coral));
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .sub {
+      max-width: 330px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      background: rgba(255,253,247,.82);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      backdrop-filter: blur(18px);
+    }
+
+    .panel-hd {
+      padding: 18px 18px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel-hd h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 850;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(34,207,196,.30);
+      background: rgba(34,207,196,.10);
+      color: #087C74;
+      font-size: 11px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .panel-bd {
+      padding: 18px;
+    }
+
+    .drop {
+      position: relative;
+      min-height: 250px;
+      border: 0;
+      border-radius: 26px;
+      background:
+        radial-gradient(circle at 22% 12%, rgba(34,207,196,.30), transparent 35%),
+        radial-gradient(circle at 88% 18%, rgba(255,111,97,.28), transparent 34%),
+        var(--surface-strong);
+      color: var(--inverse);
+      display: grid;
+      place-items: center;
+      padding: 26px 22px;
+      text-align: center;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform .18s ease, box-shadow .18s ease;
+      box-shadow: 0 22px 42px rgba(21,21,21,.18);
+    }
+
+    .drop::before {
+      content: "";
+      position: absolute;
+      inset: 12px;
+      border: 1px dashed rgba(255,253,247,.28);
+      border-radius: 20px;
+      pointer-events: none;
+    }
+
+    .drop:active, .drop.dragover {
+      transform: translateY(2px) scale(.992);
+      box-shadow: 0 14px 28px rgba(21,21,21,.18);
+    }
+
+    .drop input { display: none; }
+
+    .upload-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 24px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 16px;
+      color: #101010;
+      background: linear-gradient(135deg, var(--teal), var(--amber));
+      box-shadow: 0 14px 30px rgba(34,207,196,.24);
+    }
+
+    .upload-icon::before {
+      content: "";
+      width: 28px;
+      height: 28px;
+      border: 3px solid currentColor;
+      border-top: 0;
+      border-radius: 0 0 10px 10px;
+      transform: translateY(4px);
+    }
+
+    .drop strong {
+      display: block;
+      font-size: 22px;
+      line-height: 1.2;
+      margin-bottom: 8px;
+      font-weight: 900;
+    }
+
+    .hint {
+      max-width: 260px;
+      margin: 0 auto;
+      color: rgba(255,253,247,.70);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .preview {
+      margin-top: 14px;
+      display: block;
+    }
+
+    .preview img {
+      width: 100%;
+      aspect-ratio: 4/3;
+      object-fit: cover;
+      border-radius: 16px;
+      border: 1px solid rgba(21,21,21,.10);
+      background: #E9E1D4;
+    }
+
+    body.processing-mode .hero {
+      display: none;
+    }
+
+    body.processing-mode .panel {
+      margin-top: calc(20px + env(safe-area-inset-top));
+    }
+
+    body.processing-mode .drop {
+      display: none;
+    }
+
+    textarea, input {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--text);
+      outline: none;
+      border-radius: 16px;
+      padding: 12px 13px;
+      min-height: 46px;
+    }
+
+    .actions {
+      display: none;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 16px;
+      min-height: 48px;
+      padding: 12px 15px;
+      font-weight: 850;
+      color: #101010;
+      background: linear-gradient(135deg, var(--teal), var(--amber));
+      box-shadow: 0 14px 30px rgba(34,207,196,.18);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:disabled {
+      opacity: .56;
+      cursor: not-allowed;
+    }
+
+    .btn.secondary {
+      color: var(--text);
+      background: rgba(21,21,21,.05);
+      border: 1px solid var(--line);
+      box-shadow: none;
+    }
+
+    .summary-card .btn.secondary {
+      color: var(--inverse);
+      background: rgba(255,253,247,.06);
+      border-color: rgba(255,253,247,.82);
+      box-shadow: inset 0 0 0 1px rgba(255,253,247,.18);
+    }
+
+    .summary-card .result-actions .btn {
+      min-height: 62px;
+      border-radius: 24px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .summary-card .result-actions .btn::after {
+      font-size: 20px;
+      line-height: 1;
+      opacity: .86;
+    }
+
+    .summary-card .result-actions .btn:first-child::after {
+      content: "↥";
+    }
+
+    .summary-card .result-actions .btn.secondary::after {
+      content: "▤";
+    }
+
+    .btn.small {
+      min-height: 44px;
+      border-radius: 14px;
+      font-size: 13px;
+      padding: 10px 12px;
+    }
+
+    .result {
+      display: none;
+      gap: 12px;
+    }
+
+    .result.show {
+      display: grid;
+    }
+
+    .empty { display: none; }
+
+    .loading {
+      display: none;
+      margin-top: 14px;
+      border-radius: 24px;
+      padding: 18px;
+      position: relative;
+      overflow: hidden;
+      background: var(--surface-strong);
+      color: var(--inverse);
+    }
+
+    .loading.show {
+      display: grid;
+      gap: 14px;
+    }
+
+    .loading::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: translateX(-100%);
+      background: linear-gradient(90deg, transparent, rgba(255,253,247,.16), transparent);
+      animation: scan 1.35s linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes scan { to { transform: translateX(100%); } }
+
+    .loading b {
+      display: block;
+      font-size: 22px;
+      line-height: 1.25;
+      font-weight: 900;
+    }
+
+    .loading span {
+      display: block;
+      color: rgba(255,253,247,.68);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .analysis-progress {
+      height: 9px;
+      border-radius: 999px;
+      background: rgba(255,253,247,.12);
+      overflow: hidden;
+    }
+
+    .analysis-progress i {
+      display: block;
+      width: 68%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--teal), var(--coral));
+      animation: pulsebar 1.25s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulsebar {
+      from { width: 36%; }
+      to { width: 86%; }
+    }
+
+    .analysis-steps {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      color: rgba(255,253,247,.72);
+      font-size: 12px;
+    }
+
+    .analysis-steps li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .analysis-steps li::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--teal);
+    }
+
+    .summary-card {
+      position: relative;
+      min-height: 316px;
+      padding: 28px;
+      border-radius: 34px;
+      border: 1px solid var(--line-dark);
+      background:
+        var(--surface-strong);
+      color: var(--inverse);
+      box-shadow: 0 22px 46px rgba(21,21,21,.20);
+      overflow: hidden;
+    }
+
+    .summary-card::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      background:
+        linear-gradient(90deg, rgba(16,19,18,.98) 0%, rgba(16,19,18,.92) 37%, rgba(16,19,18,.56) 66%, rgba(16,19,18,.24) 100%),
+        radial-gradient(circle at 0% 0%, rgba(34,207,196,.25), transparent 42%),
+        radial-gradient(circle at 100% 0%, rgba(255,111,97,.18), transparent 38%);
+      pointer-events: none;
+    }
+
+    .summary-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(circle at 80% 10%, rgba(255,255,255,.10), transparent 30%),
+        #111;
+      overflow: hidden;
+    }
+
+    .summary-bg::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(16,19,18,.94), rgba(16,19,18,.22) 58%, rgba(16,19,18,.06)),
+        rgba(0,0,0,.24);
+      z-index: 3;
+    }
+
+    .summary-bg::after {
+      content: "";
+      position: absolute;
+      inset: -20%;
+      z-index: 4;
+      background-image:
+        linear-gradient(rgba(255,253,247,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,253,247,.025) 1px, transparent 1px);
+      background-size: 38px 38px;
+      opacity: .32;
+      transform: rotate(-8deg);
+    }
+
+    .summary-photo {
+      position: absolute;
+      right: -8%;
+      width: 44%;
+      height: 39%;
+      border-radius: 10px;
+      overflow: hidden;
+      background: rgba(255,253,247,.08);
+      box-shadow: 0 18px 34px rgba(0,0,0,.28);
+      opacity: .72;
+      transform: rotate(var(--r, -8deg));
+      mask-image: linear-gradient(to left, #000 0%, rgba(0,0,0,.92) 54%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to left, #000 0%, rgba(0,0,0,.92) 54%, transparent 100%);
+    }
+
+    .summary-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: saturate(.96) contrast(1.02) brightness(.86);
+    }
+
+    .summary-photo:nth-child(1) {
+      top: 7%;
+      right: -5%;
+      width: 48%;
+      height: 43%;
+      --r: 8deg;
+    }
+
+    .summary-photo:nth-child(2) {
+      top: 42%;
+      right: 7%;
+      width: 41%;
+      height: 36%;
+      --r: -6deg;
+    }
+
+    .summary-photo:nth-child(3) {
+      top: 18%;
+      right: 34%;
+      width: 34%;
+      height: 31%;
+      --r: -11deg;
+      opacity: .45;
+    }
+
+    .summary-photo:nth-child(4) {
+      bottom: -8%;
+      right: -3%;
+      width: 48%;
+      height: 37%;
+      --r: 5deg;
+      opacity: .52;
+    }
+
+    .rating-hero {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .rating-kicker {
+      width: fit-content;
+      border: 1px solid rgba(34,207,196,.42);
+      border-radius: 999px;
+      background: rgba(34,207,196,.12);
+      color: #7AF0E9;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .rating-word {
+      color: var(--inverse);
+      font-size: clamp(58px, 19vw, 86px);
+      line-height: .96;
+      letter-spacing: 0;
+      font-weight: 950;
+      overflow-wrap: anywhere;
+      text-shadow: 0 2px 18px rgba(0,0,0,.28);
+    }
+
+    .summary-text p {
+      margin: 0;
+      max-width: 92%;
+      color: rgba(255,253,247,.78);
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(255,253,247,.86);
+      padding: 16px;
+      box-shadow: 0 12px 28px rgba(38,30,20,.08);
+    }
+
+    .card h3 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .tag {
+      display: inline-flex;
+      padding: 7px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(21,21,21,.04);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .bar {
+      display: grid;
+      gap: 7px;
+      margin-bottom: 12px;
+    }
+
+    .bar:last-child { margin-bottom: 0; }
+
+    .bar-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .bar-top strong {
+      color: var(--text);
+    }
+
+    .track {
+      height: 9px;
+      background: rgba(21,21,21,.08);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .fill {
+      height: 100%;
+      width: var(--w);
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--teal), var(--coral));
+    }
+
+    .radar-wrap {
+      display: grid;
+      gap: 12px;
+      justify-items: center;
+    }
+
+    .radar-svg {
+      width: min(100%, 320px);
+      height: auto;
+      display: block;
+      overflow: visible;
+    }
+
+    .radar-grid {
+      fill: none;
+      stroke: rgba(21,21,21,.10);
+      stroke-width: 1;
+    }
+
+    .radar-axis {
+      stroke: rgba(21,21,21,.10);
+      stroke-width: 1;
+    }
+
+    .radar-area {
+      fill: rgba(34,207,196,.22);
+      stroke: var(--coral);
+      stroke-width: 3;
+      stroke-linejoin: round;
+    }
+
+    .radar-dot {
+      fill: var(--surface);
+      stroke: var(--coral);
+      stroke-width: 2;
+    }
+
+    .radar-label {
+      fill: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .radar-value {
+      fill: var(--text);
+      font-size: 10px;
+      font-weight: 850;
+    }
+
+    .roast {
+      border: 1px solid rgba(21,21,21,.08);
+      background: rgba(21,21,21,.035);
+      border-radius: 16px;
+      padding: 12px;
+      margin-top: 9px;
+    }
+
+    .roast:first-child { margin-top: 0; }
+
+    .roast p {
+      margin: 0;
+      color: #26221E;
+      line-height: 1.65;
+      font-size: 14px;
+    }
+
+    .roast-layer {
+      display: grid;
+      gap: 5px;
+      padding-top: 10px;
+      margin-top: 10px;
+      border-top: 1px solid rgba(21,21,21,.08);
+    }
+
+    .roast-layer:first-child {
+      padding-top: 0;
+      margin-top: 0;
+      border-top: 0;
+    }
+
+    .roast-layer b {
+      color: #087C74;
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .roast-layer.gold p {
+      font-size: 16px;
+      font-weight: 850;
+      color: #151515;
+    }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 12px;
+      background: rgba(255,253,247,.70);
+    }
+
+    summary {
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    pre {
+      margin: 12px 0 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.6;
+      max-height: 360px;
+      overflow: auto;
+    }
+
+    .result-actions {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(18px + env(safe-area-inset-bottom));
+      transform: translateX(-50%) translateY(18px);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 50;
+      max-width: calc(100vw - 28px);
+      border-radius: 999px;
+      background: rgba(21,21,21,.94);
+      color: var(--inverse);
+      box-shadow: 0 18px 44px rgba(21,21,21,.24);
+      padding: 10px 14px;
+      font-size: 13px;
+      transition: .2s ease;
+      text-align: center;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .footer {
+      padding: 18px 2px 0;
+      color: var(--soft);
+      font-size: 11px;
+      line-height: 1.65;
+    }
+
+    body.processing-mode .footer {
+      display: none;
+    }
+
+    .hide { display: none !important; }
+
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="hero input-view" id="heroView">
+      <div class="badge"><span class="dot"></span> 娱乐分析 · 不评价本人</div>
+      <h1>滤镜<span class="grad">啪嗒</span></h1>
+      <p class="sub">上传一张朋友圈截图，让 AI 帮你拆出滤镜、仪式感和过度包装。</p>
+    </section>
+
+    <section class="panel input-view" id="inputPanel">
+      <div class="panel-hd">
+        <h2>上传截图</h2>
+        <span class="pill" id="statePill">等待图片</span>
+      </div>
+      <div class="panel-bd">
+        <div class="drop" id="drop">
+          <input id="fileInput" type="file" accept="image/*" />
+          <div>
+            <div class="upload-icon" aria-hidden="true"></div>
+            <strong>选择图片开始分析</strong>
+            <div class="hint">仅支持上传一张图片。上传后会自动进入 AI 分析中。</div>
+          </div>
+        </div>
+
+        <div class="preview hide" id="preview"></div>
+
+        <div class="loading" id="loading">
+          <b>AI 正在拆滤镜</b>
+          <span id="loadingText">正在抓取最值得锐评的表演痕迹。</span>
+          <div class="analysis-progress" aria-hidden="true"><i></i></div>
+          <ul class="analysis-steps">
+            <li>识别截图里的情绪高光</li>
+            <li>评估废话文学浓度</li>
+            <li>生成克制但好笑的锐评</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+    <section class="empty" id="empty"></section>
+
+    <section class="result" id="result">
+      <div class="summary-card">
+        <div class="summary-bg" id="summaryBg" aria-hidden="true"></div>
+        <div class="rating-hero">
+          <span class="rating-kicker">总评</span>
+          <strong class="rating-word" id="overallLabel">—</strong>
+          <div class="summary-text">
+            <p id="oneLine">—</p>
+          </div>
+        </div>
+
+        <div class="result-actions">
+          <button class="btn small" id="backBtn">重新上传</button>
+          <button class="btn secondary small" id="certBtn">证书图</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>锐评</h3>
+        <div id="roastBox"></div>
+      </div>
+
+      <div class="card">
+        <h3>评分雷达</h3>
+        <div id="scoreBox"></div>
+      </div>
+
+    </section>
+
+    <section class="footer">
+      <p>声明：本工具只吐槽社交媒体表演痕迹，不攻击长相、身材、年龄、性别、学历、地域、家庭、职业身份、真实人格或健康状况。输出均为 AI 娱乐化推测，不代表真实情况。</p>
+    </section>
+  </main>
+
+  <div class="actions input-view" id="actionBar">
+    <button class="btn" id="analyzeBtn">开始分析</button>
+    <button class="btn secondary" id="clearBtn">清空</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="./certificate-templates.js"></script>
+  <script>
+    // 百炼 / DashScope OpenAI 兼容模式
+    // 对应 Python SDK：
+    // client = OpenAI(
+    //   api_key="sk-xxx",
+    //   base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+    // )
+    const DASHSCOPE_API_KEY = "sk-8e9aaf0cdc0c4dccb23903639aa3d87e";
+    const DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+    const DASHSCOPE_CHAT_COMPLETIONS_URL = `${DASHSCOPE_BASE_URL}/chat/completions`;
+    const FIXED_VISION_MODEL = "qwen3.7-plus";
+    const CERTIFICATE_CANVAS = { w: 1080, h: 1440 };
+    const CERTIFICATE_TEMPLATE_SIZE = { w: 1086, h: 1448 };
+    const CERTIFICATE_TEMPLATE_URLS = {
+      "夯爆了": "./assets/cert-boom.png",
+      "拉完了": "./assets/cert-fail.png",
+      "人上人": "./assets/cert-king.png",
+      "npc": "./assets/cert-npc.png"
+    };
+    const CERTIFICATE_ROAST_LAYOUT = { x: 90, y: 646, maxW: 330, lineH: 55, fontSize: 35, maxLines: 5, color: "#111111" };
+    const CERTIFICATE_COW_BUBBLE_LAYOUT = { x: 462, y: 560, maxW: 176, h: 92, lineH: 32, fontSize: 26, maxLines: 3, color: "#111111" };
+    const CERTIFICATE_IMAGE_LAYOUT = { x: 53, y: 958, w: 410, h: 382, radius: 18 };
+    const CERTIFICATE_SCORE_LAYOUT = { x: 856, y: 198, numberSize: 96, percentSize: 48, color: "#D9271C" };
+    const CERTIFICATE_TOPIC_LAYOUTS = [
+      { x: 104, y: 434, w: 274, h: 62, fontSize: 30, color: "#171717", rotate: -4 },
+      { x: 410, y: 410, w: 286, h: 62, fontSize: 30, color: "#171717", rotate: -2 },
+      { x: 724, y: 410, w: 324, h: 62, fontSize: 30, color: "#171717", rotate: 3 }
+    ];
+
+    const SYSTEM_PROMPT = `Role: 朋友圈“嘴替” / 数据化毒舌损友
+
+Profile
+你不是AI助手，也不是礼貌的客服。你是用户那个说话最损、眼光最毒、但绝无恶意的死党。你的任务是对用户的朋友圈进行“精准吐槽（Roast）”和“数据化处刑”。你的幽默感来自于洞察人性的弱点、拆穿社交伪装，而不是攻击客观事实。
+
+🛑 绝对安全红线 (Safety Guardrails - 最高优先级)
+在任何情况下，你的锐评和评分绝对禁止触碰以下六大红线。你的攻击目标只能是“行为、文案、构图、社交动机”：
+1. 不攻击长相、身材、外貌特征（如：胖瘦、美丑、五官）。
+2. 不攻击年龄、性别、性别认同。
+3. 不攻击学历、职业、收入水平。
+4. 不攻击地域、籍贯、家乡文化。
+5. 不攻击家庭背景、家庭成员、婚恋状态。
+6. 不攻击真实人格、心理健康、道德品质。
+(注：如果用户内容涉及严重违规、负面情绪或真实创伤，请立刻收起毒舌，给予幽默的心理按摩或温和的兜底回复。)
+
+🧠 核心锐评原则
+1. 拒绝泛泛描述，必须抓住用户上传图片里一个具体可见特点（例如帽子、花墙、九宫格切图、道具朝向、logo、滤镜色温、文案断行、姿势角度），三层输出都围绕这个特点开火。
+2. 去客套化与短句为王：禁止使用“建议”、“其实”、“虽然...但是”。模仿微博/小红书神评节奏，多用反问句、夸张比喻和反讽。锐评金句最多50个中文字符，越短越有力。
+3. 锐评要锐，也要让人笑：目标是让用户看完“哈哈哈 AI 把我识穿了”，想下载证书图发朋友圈二次传播。金句要像能被截图转发的朋友圈评论，不要像鉴定报告标题。
+4. 每次必须找到图片里“独一份”的穿帮点或表演点，再给搞笑锐评。没有识别到具体特点时，优先吐槽构图、滤镜、文案格式、道具摆放或截图结构，不要编不存在的地点和身份。
+5. 可以使用反讽闭环：用户把“被识穿”晒出去，本身也是新人设包装。可轻轻点破这种自嘲式分享欲，但不要羞辱本人。
+  
+👁️ 多模态视觉防御机制 (Vision Task)
+当输入包含图片时，执行以下逻辑：
+1. 场景置信度自检：
+  - 高置信度（如海滩、办公室）：精准打击场景与行为的反差。
+  - 低置信度/模糊场景（如逆光剪影、奇怪室内）：严禁猜测具体地点！将槽点转移到“人物的姿态”、“构图的诡异”或“通用的装X行为”上。（例：“不管这是在哪儿，这个背影都写满了‘生人勿近’...”）
+2. 寻找“穿帮”细节：背景里的路人白眼、杂乱的桌面、不自然的肢体扭曲、图文不符的矛盾点。
+  
+🎯 六维数据化评分系统 (必须输出)
+在锐评之后，必须根据以下标准进行0-10分的打分，并附带一句“一针见血的判词”。此外必须输出一个“装感指数”，用0-100的整数百分制表示整条朋友圈的装感强度：
+1. 摆拍指数：照片看起来“精心设计”的程度。分数越高，越不像随手拍，越像为了发朋友圈而存在的“工程”。
+2. 废话文学指数：文案和画面的信息量为零的程度。分数越高，越像是在凑数、发废话、毫无营养。
+3. 社交乞讨指数：内容中刻意引导他人评论、点赞或提供情绪价值的程度。分数越高，越像是在“赛博乞讨”。
+4. 显眼包浓度：内容的“吸睛”与“社死”并存的程度。分数越高，越容易让人在公共场合笑出声，或者让人替TA感到尴尬。
+5. 凡尔赛浓度：“凡尔赛”文学的视觉化呈现。分数越高，越是“明贬暗褒”、“声东击西”。
+6. 精修痕迹：后期处理痕迹过重，导致画面失去真实感的程度。分数越高，越像AI生成的假图。
+7. 装感指数：0-100整数。综合摆拍、滤镜、道具、文案、社交动机判断，分数越高越像“不是记录生活，是在装修人设”。
+  
+🎭 锐评维度触发器 (Triggers)
+- 过度自拍/九宫格全是脸 → 吐槽角度重复、表情管理失控、P图痕迹。
+- 精致露营/下午茶/看展 → 吐槽“出片”背后的狼狈、摆拍的刻意、文案的无病呻吟。
+- 秀恩爱/晒礼物 → 吐槽表演型人格、文案的尴尬指数。
+- 深夜emo/鸡汤文案 → 吐槽清醒时的虚伪、白天的快乐与晚上的矫情反差。
+- 健身/打卡 → 吐槽拍照五分钟流汗两小时、装备党。
+- 不明所以的意境图/剪影 → 吐槽“看不懂但在装深沉”、“为了凑数硬发”。
+  
+📚 Few-Shot Examples (学习这些语调)
+锐评触发的识别点 → 对应话术
+滤镜过重
+"这色温已经不是日落了，是核爆。后期师傅辛苦了。" "皮肤光滑到我以为在看瓷砖广告。" "美颜开到这个程度，脸已经是概念稿了。"
+构图太刻意
+"随手拍，但随手拍了多少张选出来的我不说。" "咖啡杯的角度旋转得刚好露出logo，手抖得很精准。" "这帧构图黄金分割精确到小数点后两位，随意生活家。"
+道具堆砌
+"书、蜡烛、花、手账、品质生活四件套齐了，就差配文'生活需要仪式感'。" "背景里那本书封面朝外，摆了多久了，翻过吗？" "道具成本高于实际心情，性价比拉满。"
+低调炫耀
+"文案说随便，价格不随便。" "'就附近找了家小馆子'，米其林星级小馆子。" "越说凑合，越不凑合。这个公式用了多少年了？"
+表演松弛感
+"放松得太标准了，标准到像培训过的。" "这个'不在意别人看法'的人，发了九张图选好了九个字的文案。" "松弛感是最贵的滤镜，这条钱没少花。"
+九宫格切图
+"一张图切九格，信息密度除以九，仪式感乘以九。" "九宫格是朋友圈的排列组合艺术，左滑右滑都是你。"
+假装没在看镜头
+"望向远方的眼神，远方在镜头左上角45度。" "抓拍，但抓拍者提前架好了三脚架。"
+文案用力过猛
+"每句话都断行，是把普通句子拍成了电影分镜。" "用了四个省略号，欲言又止说了两百字。" "这条文案的文学性，和配图的精致感，是一个团队出品的。"
+人设经营痕迹
+"连续三十条都是同一个滤镜同一个角度，人设稳定得像品牌VI手册。" "生活方式博主和普通人的区别：普通人不会把早餐拍成大片。" "这个账号在经营一个人，这个人不一定是你。"
+🚨 异常兜底机制 (Fallback)
+- 如果图片过于模糊/纯文字无图，且文案极其平淡（如“今天天气不错”），不要硬编槽点。
+- 兜底回复：“这条朋友圈平淡得就像你的人生，连我的毒舌都无从下口。已阅，退下吧。”
+  
+📝 锐评输出结构
+每次分析给出三层，三层都要围绕同一个“具体可见特点”，不要空泛套话：
+第一层·证据列举（客观冷静）：像法庭陈述，指出具体技术/构图/文案痕迹。
+例："检测到：色相偏移明显，面部边缘偏糊，前景道具3件均正面朝向镜头。"
+第二层·行为解读（带点好奇）：不判断对错，分析这张图为什么这么设计。
+例："视觉重心被刻意引导向右上角标志，属于教科书级'无意识露出'。"
+第三层·锐评金句（攻击性拉满但有边界）：最多50个中文字符，一句话戳破，要让人想截图分享。
+例："用'被识穿'包装新人设，技术迭代很快，继续加油。"
+
+🐮 牛气泡神评论
+必须额外输出一段“牛说的话”，放进 cow_bubble_text。它是证书里牛旁边气泡的朋友圈神评论，不是锐评金句，也不是话题标签。
+要求：
+1. 12-25个中文字符，优先适合分成2-3行放进小气泡，不要写成长句。
+2. 必须像朋友圈评论区高赞神评论：短、狠、好笑、有梗，让人想回“哈哈哈哈”。
+3. 必须与用户上传的朋友圈强相关，点名或暗扣图片里一个具体可见元素、动作、构图、滤镜、文案或道具，不要写成通用吐槽。
+4. 必须和 roast_comment 明显不同：不要复用锐评金句的词、梗、比喻、句式或结论。锐评像主判词，牛气泡要像旁边路人突然补刀的一条评论。
+5. 可以使用夸张数字、拟人、反讽、网络热梗，但不要硬玩牛梗，不要只说“太装了”“太假了”。
+6. 不要攻击长相、身材、身份等安全红线。
+示例："这动作我今天刷到108次了"、"花墙都快被你扶出工伤了"、"这滤镜把晚霞都卷失业了"
+
+🏷️ 话题类型短评
+必须输出3个话题类型评价，放进 topic_tags。每个最多5-6个中文字符，不要标点，不要解释，必须贴合图片中可见特点。
+示例：["扶帽认证","花墙标准动作","朋友圈教程"]、["滤镜核爆","咖啡露标","松弛培训"]、["九宫切片","文案断行","道具开会"]
+  
+总评词库：必须且只能从以下 4 个词中选择 1 个。
+
+「夯爆了」：搞笑点明确、整活成功、显眼包浓度高，或者有明显记忆点。内容不一定高级，但必须有趣、有梗、有存在感，让人看完觉得“这条有点东西”。
+
+「人上人」：装 X 成功、凡尔赛成功、人设经营到位，或者确实让人嫉妒。内容可以是高级感、资源感、精致感、优越感、人生赢家感，只要装得自然、装得成立、让人酸了，就归为「人上人」。
+
+「npc」：极其平庸、毫无波澜、毫无记忆点，像路人甲自动刷新出来的朋友圈。内容不尴尬、不精彩、不好笑、不高级，看完没有任何情绪波动，就归为「npc」。
+
+「拉完了」：用力过猛、尴尬感明显、图文不符、装 X 失败、精致感翻车，或者已经有轻微翻车感；不需要严重翻车，只要让人觉得“有点绷不住”“有点尬”“有点硬装”，就归为「拉完了」。
+
+判断优先级：
+
+如果内容明显搞笑、整活成功、有梗、有记忆点，优先选「夯爆了」。
+
+如果内容是在装，但装得自然、装得高级、装得让人嫉妒，选「人上人」。
+
+如果内容是在装，但装得生硬、刻意、油腻、尴尬、用力过猛，选「拉完了」。
+
+如果内容没有明显笑点、没有高级感、没有翻车点，也没有记忆点，选「npc」。
+
+核心区分：
+真有梗，是「夯爆了」。
+真会装，是「人上人」。
+硬要装，是「拉完了」。
+啥也不是，是「npc」。
+  
+输出格式 (严格JSON)
+不要输出任何开场白、解释或Markdown代码块标记（如 \`\`\`json）。直接输出合法的JSON字符串：
+{
+  "overall_rating": "总评词（必须是上述4个词之一）",
+  "style_score": 87,
+  "topic_tags": ["话题1最多6字", "话题2最多6字", "话题3最多6字"],
+  "evidence_statement": "证据列举，80字以内，必须点名图片里的具体可见特点",
+  "behavior_reading": "行为解读，80字以内，解释这个特点背后的社交呈现动机",
+  "roast_comment": "锐评金句，最多50个中文字符，欠揍但好笑，适合下载证书发朋友圈",
+  "cow_bubble_text": "牛气泡朋友圈神评论，12-25个中文字符，强相关、搞笑、有梗",
+  "metrics": {
+    "pose_score": 0,
+    "nonsense_score": 0,
+    "social_begging_score": 0,
+    "attention_score": 0,
+    "versailles_score": 0,
+    "edit_score": 0
+  }
+}
+
+这个评分系统是“锐评”的灵魂升华！它把主观的吐槽变成了客观的“数据化处刑”，增加了游戏的可玩性和传播性。为了让评分既毒舌精准又让人无法反驳，我们需要为每个指标设定一套“反直觉”或“极度写实”的判定逻辑。
+以下是为你设计的六大维度评分标准（0-10分制，分数越高代表该属性越爆表）：
+1. 摆拍指数 (Pose & Setup)
+定义：照片看起来“精心设计”的程度。分数越高，越不像随手拍，越像为了发朋友圈而存在的“工程”。
+- 0-3分（自然流）：糊图、没对焦、表情崩坏但真实、背景杂乱无章、明显的抓拍视角（如仰拍双下巴）。
+- 4-6分（正常记录）：构图工整，光线正常，有人物互动，像是普通游客照或生活记录。
+- 7-8分（精修预警）：滤镜统一，姿势明显经过设计（如刻意遮挡脸部、特定的手部动作），背景被虚化以突出主体。
+- 9-10分（影楼级造假）：连头发丝都精心打理过，光影是打出来的，甚至连路边的落叶都是摆好的。配文“随便拍拍”，实则修图两小时。
+- 判词示例：“这哪里是拍照，这是在搞装修。” / “这构图，没个十年脑血栓想不出来。”
+2. 废话文学指数 (Nonsense)
+定义：文案和画面的信息量为零的程度。分数越高，越像是在凑数、发废话、毫无营养。
+- 0-3分（言之有物）：有具体的事件、有趣的段子、或者真诚的情感表达。
+- 4-6分（流水账）：简单的日常打卡（如“今天吃了个饭”、“下班”），信息量低但不惹人厌。
+- 7-8分（强行凑字）：文案与画面毫无关联，或者用一堆毫无意义的Emoji和标点符号凑数。
+- 9-10分（赛博废话）：纯发个“.”、一张纯黑图、或者“听君一席话，如听一席话”式的废话，纯粹为了刷存在感。
+- 判词示例：“这朋友圈发的，跟没发一样。” / “文案的含金量，还不如你手机里的缓存垃圾。”
+3. 社交乞讨指数 (Attention Seeking)
+定义：内容中刻意引导他人评论、点赞或提供情绪价值的程度。分数越高，越像是在“赛博乞讨”。
+- 0-3分（自给自足）：纯粹的个人记录，不在乎别人看不看，不主动求互动。
+- 4-6分（正常互动）：正常的提问（如“这家店有人吃过吗？”）、节日祝福。
+- 7-8分（刻意留白）：故意发一半藏一半，或者发个“好烦”但不说原因，逼着别人来问“怎么了”。
+- 9-10分（赛博乞讨）：满屏的“求赞”、“有人懂这个吗？”、“在线等挺急的”，或者故意发个极具争议的观点引战。
+- 判词示例：“这文案写得，就差把‘快来问我’四个字刻脑门上了。” / “怎么，朋友圈是你开的赛博孤儿院？”
+4. 显眼包浓度 (Attention / Embarrassment)
+定义：内容的“吸睛”与“社死”并存的程度。分数越高，越容易让人在公共场合笑出声，或者让人替TA感到尴尬。
+- 0-3分（透明人）：中规中矩，毫无波澜，扔进人堆里找不着。
+- 4-6分（有点意思）：搞怪表情包、轻微的自黑、有趣的互动。
+- 7-8分（整活大师）：夸张的肢体语言、奇怪的穿搭、在严肃场合的不合时宜。
+- 9-10分（人类多样性样本）：行为艺术级别。比如：在大街上跳奇怪的舞、对着空气演戏、发出令人费解的声音。
+- 判词示例：“只要你不尴尬，尴尬的就是我们。” / “建议直接保送《人类迷惑行为大赏》。”
+5. 凡尔赛浓度 (Humble Brag)
+定义：“凡尔赛”文学的视觉化呈现。分数越高，越是“明贬暗褒”、“声东击西”。
+- 0-3分（真·低调）：真的没什么好晒的，或者真诚地分享快乐，没有对比就没有伤害。
+- 4-6分（小确幸）：买了个新杯子、吃了一顿好吃的。这是正常的分享欲。
+- 7-8分（初级凡尔赛）：抱怨中带着炫耀。例如：“哎呀，老公非要送这个颜色的包，太丑了但我只能背着了。”
+- 9-10分（极限拉扯）：表面是在吐槽或展示无关紧要的细节，实则核心焦点全是钱/权/爱。比如：拍一张乱糟糟的床，结果床头柜上放着法拉利的钥匙。
+- 判词示例：“这就叫‘无意’间闪了大家的腰。” / “这凡尔赛的酸味，隔着屏幕都辣眼睛。”
+6. 精修痕迹 (Filter & Edit Distortion)
+定义：后期处理痕迹过重，导致画面失去真实感的程度。分数越高，越像AI生成的假图。
+- 0-3分（原相机）：真实的皮肤纹理、自然的光影、甚至有点暗沉。
+- 4-6分（轻度美颜）：磨皮、提亮，但保留了基本的人体比例和背景逻辑。
+- 7-8分（重度滤镜）：脸和脖子两个色号、背景里的电线杆都歪了、天空蓝得像阿凡达。
+- 9-10分（赛博换头）：五官完全违背人体工学，下巴尖得能耕地，眼睛大得像外星人，连亲妈都得扫码识别。
+- 判词示例：“这滤镜厚得，连亲妈都得扫码识别。” / “修图软件都要被你盘包浆了。”`;
+
+    const $ = (id) => document.getElementById(id);
+    const fileInput = $("fileInput");
+    const drop = $("drop");
+    const preview = $("preview");
+    const analyzeBtn = $("analyzeBtn");
+    const clearBtn = $("clearBtn");
+    const backBtn = $("backBtn");
+    const loading = $("loading");
+    const loadingText = $("loadingText");
+    const result = $("result");
+    const empty = $("empty");
+    const statePill = $("statePill");
+
+    let compressedImages = [];
+    let lastJson = null;
+    let timer = null;
+
+    const loadingLines = [
+      "正在抓取最值得锐评的表演痕迹。",
+      "正在计算凡尔赛浓度的单位面积含金量。",
+      "识别废话文学与赛博乞讨痕迹。",
+      "正在给社交乞讨指数打一个不太留情面的分。",
+    ];
+
+    function toast(msg) {
+      const t = $("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), 1850);
+    }
+
+    function setLoading(on) {
+      analyzeBtn.disabled = on;
+      document.body.classList.toggle("processing-mode", on);
+      loading.classList.toggle("show", on);
+      if (on) {
+        clearInterval(timer);
+        let i = 0;
+        loadingText.textContent = loadingLines[i];
+        timer = setInterval(() => {
+          i = (i + 1) % loadingLines.length;
+          loadingText.textContent = loadingLines[i];
+        }, 1250);
+      } else {
+        clearInterval(timer);
+        timer = null;
+      }
+    }
+
+    drop.addEventListener("click", () => fileInput.click());
+    drop.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      drop.classList.add("dragover");
+    });
+    drop.addEventListener("dragleave", () => drop.classList.remove("dragover"));
+    drop.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      drop.classList.remove("dragover");
+      await handleFiles([...e.dataTransfer.files]);
+    });
+    fileInput.addEventListener("change", async () => handleFiles([...fileInput.files]));
+
+    async function handleFiles(files) {
+      const imgs = files.filter(f => f.type.startsWith("image/"));
+      if (!imgs.length) return toast("请上传图片文件");
+      if (imgs.length > 1) return toast("一次只能上传一张图片");
+
+      setLoading(true);
+      statePill.textContent = "处理图片中";
+      loadingText.textContent = "正在压缩图片，准备交给 AI 分析。";
+      try {
+        compressedImages = [];
+        preview.innerHTML = "";
+        preview.classList.remove("hide");
+
+        const file = imgs[0];
+        const item = await compressImage(file, 900, 0.84);
+        compressedImages = [item];
+        const img = document.createElement("img");
+        img.src = `data:${item.media_type};base64,${item.data}`;
+        img.alt = file.name;
+        preview.appendChild(img);
+
+        statePill.textContent = "已上传 1 张";
+        toast("上传成功，开始 AI 分析");
+        await runAnalysis();
+      } catch (err) {
+        console.error(err);
+        toast("图片处理失败");
+        setLoading(false);
+      }
+    }
+
+    function compressImage(file, maxSide = 900, quality = 0.84) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = reject;
+        reader.onload = () => {
+          const img = new Image();
+          img.onerror = reject;
+          img.onload = () => {
+            let w = img.width;
+            let h = img.height;
+            const scale = Math.min(1, maxSide / Math.max(w, h));
+            w = Math.round(w * scale);
+            h = Math.round(h * scale);
+
+            const canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d", { alpha: false });
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+
+            const dataUrl = canvas.toDataURL("image/jpeg", quality);
+            resolve({
+              media_type: "image/jpeg",
+              data: dataUrl.split(",")[1],
+              width: w,
+              height: h,
+              name: file.name
+            });
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function buildChatCompletionsPayload() {
+      // 对齐开发文档中的：
+      // completion = client.chat.completions.create({
+      //   model: "...",
+      //   messages: [...]
+      // })
+      //
+      // 注意：这里是浏览器 fetch 写法，不使用 Python OpenAI SDK；
+      // 但请求 URL、Authorization、model、messages 结构与 OpenAI 兼容模式一致。
+
+      const userContent = [];
+
+      for (const img of compressedImages) {
+        userContent.push({
+          type: "image_url",
+          image_url: {
+            url: `data:${img.media_type};base64,${img.data}`
+          }
+        });
+      }
+      userContent.push({
+        type: "text",
+        text: "请分析这张图片。严格遵守 system prompt，只输出可解析 JSON，不要 Markdown，不要代码块。"
+      });
+
+      return {
+        model: FIXED_VISION_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: SYSTEM_PROMPT
+          },
+          {
+            role: "user",
+            content: userContent
+          }
+        ],
+        temperature: 0.85,
+        max_tokens: 2200
+      };
+    }
+
+    async function callDashScopeChatCompletions(payload) {
+      const res = await fetch(DASHSCOPE_CHAT_COMPLETIONS_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${DASHSCOPE_API_KEY}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const text = await res.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch (_) {}
+
+      if (!res.ok) {
+        const msg = data?.error?.message || data?.message || text || "请求失败";
+        const lower = String(msg).toLowerCase();
+
+        if (lower.includes("cors")) {
+          throw new Error("浏览器跨域请求被拦截。");
+        }
+
+        if (lower.includes("access denied") || lower.includes("access_denied")) {
+          throw new Error(
+            "Access denied：请求已到达百炼，但被拒绝。常见原因：API Key 不是百炼 Model Studio Key、账号未开通百炼/模型调用、当前模型无权限或无可用额度。"
+          );
+        }
+
+        throw new Error(msg);
+      }
+
+      return data || JSON.parse(text);
+    }
+
+    function extractText(data) {
+      if (typeof data === "string") return data;
+      if (data?.choices?.[0]?.message?.content) return data.choices[0].message.content;
+      if (Array.isArray(data?.output?.choices)) return data.output.choices[0]?.message?.content || "";
+      if (data?.content) return typeof data.content === "string" ? data.content : JSON.stringify(data.content);
+      return JSON.stringify(data);
+    }
+
+    function parseJsonLoose(text) {
+      let s = String(text || "").trim();
+      s = s.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```$/i, "").trim();
+      try { return JSON.parse(s); } catch (_) {}
+      const first = s.indexOf("{");
+      const last = s.lastIndexOf("}");
+      if (first >= 0 && last > first) {
+        try { return JSON.parse(s.slice(first, last + 1)); } catch (_) {}
+      }
+      throw new Error("模型返回内容不是合法 JSON，请重新分析一次。");
+    }
+
+    analyzeBtn.addEventListener("click", runAnalysis);
+
+    async function runAnalysis() {
+      if (!compressedImages.length) return toast("先上传一张图片");
+      setLoading(true);
+      statePill.textContent = "AI 分析中";
+
+      try {
+        const payload = buildChatCompletionsPayload();
+        const data = await callDashScopeChatCompletions(payload);
+        const text = extractText(data);
+        const json = normalizeModelJson(parseJsonLoose(text));
+        lastJson = json;
+        renderResult(json);
+        statePill.textContent = "鉴定完成";
+        toast("鉴定完成，总评词已出炉");
+      } catch (err) {
+        console.error(err);
+        statePill.textContent = "请求失败";
+        toast(err.message || "分析失败");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    clearBtn.addEventListener("click", resetAll);
+    backBtn.addEventListener("click", resetAll);
+
+    function resetAll() {
+      compressedImages = [];
+      lastJson = null;
+      fileInput.value = "";
+      preview.innerHTML = "";
+      preview.classList.add("hide");
+      $("summaryBg").innerHTML = "";
+      result.classList.remove("show");
+      setInputView(true);
+      document.body.classList.remove("processing-mode");
+      empty.classList.remove("hide");
+      statePill.textContent = "等待图片";
+      toast("已清空");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function normalizeModelJson(data) {
+      if (!data || typeof data !== "object") return data;
+      if (!data.overall_rating && !data.roast_comment && !data.evidence_statement && !data.behavior_reading && !data.metrics) return data;
+
+      const metrics = data.metrics || {};
+      const scores = {
+        "摆拍指数": metrics.pose_score,
+        "废话文学指数": metrics.nonsense_score ?? metrics.persona_score,
+        "社交乞讨指数": metrics.social_begging_score ?? metrics.kpi_score,
+        "显眼包浓度": metrics.attention_score,
+        "凡尔赛浓度": metrics.versailles_score ?? (metrics.edit_score !== undefined || metrics.filter_edit_score !== undefined ? metrics.humble_brag_score : metrics.work_smell_score),
+        "精修痕迹": metrics.edit_score ?? metrics.filter_edit_score ?? metrics.refine_score ?? (metrics.work_smell_score !== undefined ? metrics.humble_brag_score : undefined)
+      };
+      const numericScores = Object.values(scores)
+        .map(Number)
+        .filter((n) => !Number.isNaN(n));
+      const avg10 = numericScores.length
+        ? numericScores.reduce((sum, n) => sum + n, 0) / numericScores.length
+        : 0;
+      const roast = limitText(safe(data.roast_comment), 50);
+      const parts = roast
+        .split(/(?<=[。！？.!?])/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const singleRoast = limitText(parts[0] || roast, 50);
+      const evidence = limitText(safe(data.evidence_statement || data.evidence || data.visible_evidence), 80);
+      const behavior = limitText(safe(data.behavior_reading || data.behavior_interpretation || data.interpretation), 80);
+      const overallLabel = normalizeOverallLabel(data.overall_rating);
+      const styleScore = normalizePercent(data.style_score ?? data.zhuang_score ?? data.outfit_score ?? metrics.style_score ?? metrics.zhuang_score ?? Math.round(avg10 * 10));
+      const topicTags = normalizeTopicTags(data.topic_tags || data.topic_types || data.topics || data["话题类型"]);
+      const cowBubbleSource = data.cow_bubble_text || data.cow_comment || data.bubble_text || data["牛说的话"] || "";
+      const cowBubbleText = cowBubbleSource ? limitText(cowBubbleSource, 25) : "";
+
+      return {
+        "识别类型": "朋友圈锐评",
+        "一句话总结": singleRoast,
+        "评分": scores,
+        "装感指数": styleScore,
+        "话题类型": topicTags,
+        overall_score: Math.round(avg10 * 10),
+        overall_label: overallLabel,
+        "牛说的话": cowBubbleText,
+        cow_bubble_text: cowBubbleText,
+        "锐评": {
+          "证据列举": evidence !== "—" ? evidence : "检测到：画面存在明显社交呈现痕迹，构图和文案都在努力制造重点。",
+          "行为解读": behavior !== "—" ? behavior : "这条内容不是随手记录，更像一次精心安排的朋友圈出片流程。",
+          "锐评金句": singleRoast
+        },
+        certificate_verdict: overallLabel,
+        "安全声明": "以上内容均为AI娱乐化吐槽，不代表真实情况。"
+      };
+    }
+
+    function normalizeOverallLabel(label) {
+      const value = safe(label);
+      if (value.toLowerCase?.() === "npc") return "npc";
+      if (["夯爆了", "人上人", "npc", "拉完了"].includes(value)) return value;
+      return "npc";
+    }
+
+    function renderResult(data) {
+      empty.classList.add("hide");
+      setInputView(false);
+      result.classList.add("show");
+
+      $("overallLabel").textContent = safe(data.overall_label);
+      $("oneLine").textContent = safe(data["一句话总结"]);
+
+      renderSummaryBackground();
+      renderScores(data["评分"] || {});
+
+      renderRoasts(data["锐评"] || {});
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function renderSummaryBackground() {
+      const bg = $("summaryBg");
+      if (!bg) return;
+      bg.innerHTML = "";
+
+      const images = compressedImages.length ? compressedImages : [];
+      if (!images.length) return;
+
+      const item = images[0];
+      const frame = document.createElement("div");
+      frame.className = "summary-photo";
+      const img = document.createElement("img");
+      img.src = `data:${item.media_type};base64,${item.data}`;
+      img.alt = "";
+      frame.appendChild(img);
+      bg.appendChild(frame);
+    }
+
+    function setInputView(show) {
+      document.body.classList.toggle("result-mode", !show);
+      document.querySelectorAll(".input-view").forEach((el) => {
+        el.classList.toggle("hide", !show);
+      });
+    }
+
+    function renderScores(scores) {
+      const box = $("scoreBox");
+      box.innerHTML = "";
+      const entries = Object.entries(scores || {})
+        .map(([label, value]) => {
+          const raw = Number(value);
+          const score = Number.isNaN(raw) ? 0 : (raw > 10 ? clamp(raw) / 10 : Math.max(0, Math.min(10, raw)));
+          return { label, score };
+        });
+      if (!entries.length) {
+        box.innerHTML = `<span class="tag">—</span>`;
+        return;
+      }
+
+      const size = 320;
+      const center = size / 2;
+      const radius = 92;
+      const labelRadius = 126;
+      const valueRadius = 104;
+      const count = entries.length;
+      const angleFor = (i) => -Math.PI / 2 + (i * Math.PI * 2 / count);
+      const point = (i, r) => {
+        const angle = angleFor(i);
+        return {
+          x: center + Math.cos(angle) * r,
+          y: center + Math.sin(angle) * r
+        };
+      };
+      const pointsToString = (items, rFn) => items
+        .map((item, i) => {
+          const p = point(i, rFn(item));
+          return `${round(p.x)},${round(p.y)}`;
+        })
+        .join(" ");
+      const grid = [2, 4, 6, 8, 10]
+        .map((level) => `<polygon class="radar-grid" points="${pointsToString(entries, () => radius * level / 10)}"></polygon>`)
+        .join("");
+      const axes = entries
+        .map((_, i) => {
+          const p = point(i, radius);
+          return `<line class="radar-axis" x1="${center}" y1="${center}" x2="${round(p.x)}" y2="${round(p.y)}"></line>`;
+        })
+        .join("");
+      const area = pointsToString(entries, (item) => radius * item.score / 10);
+      const dots = entries
+        .map((item, i) => {
+          const p = point(i, radius * item.score / 10);
+          return `<circle class="radar-dot" cx="${round(p.x)}" cy="${round(p.y)}" r="4"></circle>`;
+        })
+        .join("");
+      const labels = entries
+        .map((item, i) => {
+          const lp = point(i, labelRadius);
+          const vp = point(i, valueRadius);
+          const anchor = lp.x < center - 16 ? "end" : (lp.x > center + 16 ? "start" : "middle");
+          const baseline = lp.y < center - 16 ? "auto" : (lp.y > center + 16 ? "hanging" : "middle");
+          const display = `${round(item.score, 1)}/10`;
+          return `
+            <text class="radar-label" x="${round(lp.x)}" y="${round(lp.y)}" text-anchor="${anchor}" dominant-baseline="${baseline}">${esc(item.label)}</text>
+            <text class="radar-value" x="${round(vp.x)}" y="${round(vp.y)}" text-anchor="middle" dominant-baseline="middle">${display}</text>
+          `;
+        })
+        .join("");
+
+      box.innerHTML = `
+        <div class="radar-wrap">
+          <svg class="radar-svg" viewBox="0 0 ${size} ${size}" role="img" aria-label="评分雷达图">
+            ${grid}
+            ${axes}
+            <polygon class="radar-area" points="${area}"></polygon>
+            ${dots}
+            ${labels}
+          </svg>
+        </div>
+      `;
+    }
+
+    function renderRoasts(roasts) {
+      const box = $("roastBox");
+      box.innerHTML = "";
+      const evidence = safe(roasts["证据列举"] || roasts.evidence_statement || roasts.evidence || roasts.visible_evidence);
+      const behavior = safe(roasts["行为解读"] || roasts.behavior_reading || roasts.behavior_interpretation || roasts.interpretation);
+      const punchline = safe(roasts["锐评金句"] || roasts.roast_comment || roasts["攻击性讽刺"] || roasts["最毒"]);
+      const div = document.createElement("div");
+      div.className = "roast";
+      div.innerHTML = `
+        <div class="roast-layer">
+          <b>证据列举</b>
+          <p>${esc(evidence)}</p>
+        </div>
+        <div class="roast-layer">
+          <b>行为解读</b>
+          <p>${esc(behavior)}</p>
+        </div>
+        <div class="roast-layer gold">
+          <b>锐评金句</b>
+          <p>${esc(limitText(punchline, 50))}</p>
+        </div>
+      `;
+      box.appendChild(div);
+    }
+
+    $("certBtn").addEventListener("click", async () => {
+      if (!lastJson) return;
+      try {
+        const url = await createCertificate(lastJson, compressedImages[0]);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "滤镜啪嗒-鉴定证书.png";
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        toast("证书图已生成");
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+      } catch (err) {
+        console.error(err);
+        toast(`证书图生成失败：${err.message || err}`);
+      }
+    });
+
+    async function createCertificate(data, imageItem) {
+      const W = CERTIFICATE_CANVAS.w, H = CERTIFICATE_CANVAS.h;
+      const canvas = document.createElement("canvas");
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext("2d");
+      const template = await loadCertificateTemplate(data);
+      const uploadedImage = await loadCertificateImage(imageItem);
+
+      if (template) {
+        drawCoverImage(ctx, template, 0, 0, W, H);
+      } else {
+        ctx.fillStyle = "#F7F4EC";
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      if (uploadedImage) {
+        const imageLayout = scaleTemplateLayout(CERTIFICATE_IMAGE_LAYOUT);
+        ctx.save();
+        roundRect(ctx, imageLayout.x, imageLayout.y, imageLayout.w, imageLayout.h, imageLayout.radius);
+        ctx.clip();
+        drawCoverImage(ctx, uploadedImage, imageLayout.x, imageLayout.y, imageLayout.w, imageLayout.h);
+        ctx.restore();
+
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 10;
+        roundRect(ctx, imageLayout.x, imageLayout.y, imageLayout.w, imageLayout.h, imageLayout.radius);
+        ctx.stroke();
+      }
+
+      drawCertificateTopics(ctx, data);
+      drawCertificateScore(ctx, data);
+      drawCertificateCowBubble(ctx, data);
+      drawCertificateRoast(ctx, data);
+
+      return await canvasToBlobUrl(canvas);
+    }
+
+    function getCertificateRoast(data) {
+      const summary = safe(data["一句话总结"]);
+      const sharpest = safe(data?.["锐评"]?.["锐评金句"] || data?.["锐评"]?.["攻击性讽刺"] || data?.["锐评"]?.["最毒"]);
+      const text = summary !== "—" ? summary : sharpest;
+      return limitText(text || safe(data.certificate_verdict || data.overall_label), 50);
+    }
+
+    function getCertificateTemplateLabel(data) {
+      return normalizeOverallLabel(data?.overall_label || data?.certificate_verdict);
+    }
+
+    function loadCertificateTemplate(data) {
+      return new Promise((resolve) => {
+        const templates = window.CERTIFICATE_TEMPLATE_DATA_URLS || {};
+        const label = getCertificateTemplateLabel(data);
+        const src = templates[label] || templates[label.toLowerCase?.()] || templates["拉完了"] ||
+          CERTIFICATE_TEMPLATE_URLS[label] || CERTIFICATE_TEMPLATE_URLS[label.toLowerCase?.()] || CERTIFICATE_TEMPLATE_URLS["拉完了"];
+        if (!src) return resolve(null);
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = src;
+      });
+    }
+
+    function drawCertificateRoast(ctx, data) {
+      const layout = scaleTemplateLayout(CERTIFICATE_ROAST_LAYOUT);
+      ctx.save();
+      ctx.fillStyle = layout.color;
+      ctx.textBaseline = "top";
+      ctx.font = `900 ${layout.fontSize}px sans-serif`;
+      wrapText(ctx, getCertificateRoast(data), layout.x, layout.y, layout.maxW, layout.lineH, layout.maxLines);
+      ctx.restore();
+    }
+
+    function drawCertificateCowBubble(ctx, data) {
+      const text = getCertificateCowBubbleText(data);
+      if (!text || text === "—") return;
+      const layout = scaleTemplateLayout(CERTIFICATE_COW_BUBBLE_LAYOUT);
+
+      ctx.save();
+      ctx.fillStyle = layout.color;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.font = `900 ${layout.fontSize}px sans-serif`;
+      wrapCenteredTextInBox(ctx, text, layout.x, layout.y, layout.maxW, layout.h, layout.lineH, layout.maxLines);
+      ctx.restore();
+    }
+
+    function drawCertificateScore(ctx, data) {
+      const layout = scaleTemplateLayout(CERTIFICATE_SCORE_LAYOUT);
+      const score = getCertificateStyleScore(data);
+      const number = String(score);
+      let numberSize = layout.numberSize;
+      let percentSize = layout.percentSize;
+
+      ctx.save();
+      ctx.fillStyle = layout.color;
+      ctx.textBaseline = "top";
+      while (numberSize > 70) {
+        ctx.font = `900 ${numberSize}px sans-serif`;
+        const numberWidth = ctx.measureText(number).width;
+        ctx.font = `900 ${percentSize}px sans-serif`;
+        const totalWidth = numberWidth + ctx.measureText("%").width + 8;
+        if (totalWidth <= 160) break;
+        numberSize -= 4;
+        percentSize -= 2;
+      }
+
+      ctx.font = `900 ${numberSize}px sans-serif`;
+      ctx.fillText(number, layout.x, layout.y);
+      const numberWidth = ctx.measureText(number).width;
+      ctx.font = `900 ${percentSize}px sans-serif`;
+      ctx.fillText("%", layout.x + numberWidth + 6, layout.y + numberSize * 0.45);
+      ctx.restore();
+    }
+
+    function drawCertificateTopics(ctx, data) {
+      const tags = getCertificateTopicTags(data);
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      CERTIFICATE_TOPIC_LAYOUTS.forEach((sourceLayout, index) => {
+        const layout = scaleTemplateLayout(sourceLayout);
+        const text = limitText(tags[index] || "", 6);
+        let fontSize = layout.fontSize;
+        do {
+          ctx.font = `900 ${fontSize}px sans-serif`;
+          if (ctx.measureText(text).width <= layout.w - 28 || fontSize <= 22) break;
+          fontSize -= 2;
+        } while (fontSize > 20);
+        ctx.fillStyle = layout.color;
+        ctx.save();
+        ctx.translate(layout.x + layout.w / 2, layout.y + layout.h / 2);
+        ctx.rotate(((layout.rotate || 0) * Math.PI) / 180);
+        ctx.fillText(text, 0, 0);
+        ctx.restore();
+      });
+      ctx.restore();
+    }
+
+    function getCertificateStyleScore(data) {
+      return normalizePercent(data?.["装感指数"] ?? data?.style_score ?? data?.zhuang_score ?? data?.overall_score);
+    }
+
+    function getCertificateCowBubbleText(data) {
+      return limitText(data?.["牛说的话"] || data?.cow_bubble_text || data?.cow_comment || data?.bubble_text, 25);
+    }
+
+    function getCertificateTopicTags(data) {
+      return normalizeTopicTags(data?.["话题类型"] || data?.topic_tags || data?.topics);
+    }
+
+    function scaleTemplateLayout(layout) {
+      const sx = CERTIFICATE_CANVAS.w / CERTIFICATE_TEMPLATE_SIZE.w;
+      const sy = CERTIFICATE_CANVAS.h / CERTIFICATE_TEMPLATE_SIZE.h;
+      const scaled = { ...layout };
+      ["x", "w", "maxW", "radius"].forEach((key) => {
+        if (scaled[key] !== undefined) scaled[key] = scaled[key] * sx;
+      });
+      ["y", "h", "lineH", "fontSize", "numberSize", "percentSize"].forEach((key) => {
+        if (scaled[key] !== undefined) scaled[key] = scaled[key] * sy;
+      });
+      return scaled;
+    }
+
+    function loadCertificateImage(imageItem) {
+      return new Promise((resolve) => {
+        if (!imageItem?.data || !imageItem?.media_type) return resolve(null);
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = `data:${imageItem.media_type};base64,${imageItem.data}`;
+      });
+    }
+    function drawCertificateImage(ctx, img, x, y, w, h) {
+      drawCoverImage(ctx, img, x, y, w, h);
+    }
+
+    function drawCoverImage(ctx, img, x, y, w, h) {
+      const iw = img.naturalWidth || img.width;
+      const ih = img.naturalHeight || img.height;
+      if (!iw || !ih) return;
+
+      const boxRatio = w / h;
+      const imageRatio = iw / ih;
+      let sx = 0;
+      let sy = 0;
+      let sw = iw;
+      let sh = ih;
+
+      if (imageRatio > boxRatio) {
+        sw = ih * boxRatio;
+        sx = (iw - sw) / 2;
+      } else {
+        sh = iw / boxRatio;
+        sy = (ih - sh) / 2;
+      }
+
+      ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+    }
+    function canvasToBlobUrl(canvas) {
+      return new Promise((resolve, reject) => {
+        if (!canvas.toBlob) {
+          try {
+            const dataUrl = canvas.toDataURL("image/png");
+            const byteString = atob(dataUrl.split(",")[1]);
+            const mime = dataUrl.split(",")[0].split(":")[1].split(";")[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+            resolve(URL.createObjectURL(new Blob([ab], { type: mime })));
+          } catch (err) {
+            reject(err);
+          }
+          return;
+        }
+
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            reject(new Error("浏览器没有返回证书图片数据"));
+            return;
+          }
+          resolve(URL.createObjectURL(blob));
+        }, "image/png");
+      });
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines = Infinity) {
+      const chars = String(text || "—").split("");
+      let line = "";
+      let yy = y;
+      let lineCount = 0;
+      for (const ch of chars) {
+        const test = line + ch;
+        if (ctx.measureText(test).width > maxWidth && line) {
+          lineCount++;
+          if (lineCount >= maxLines) {
+            ctx.fillText(`${line.slice(0, Math.max(0, line.length - 1))}…`, x, yy);
+            return;
+          }
+          ctx.fillText(line, x, yy);
+          line = ch;
+          yy += lineHeight;
+        } else {
+          line = test;
+        }
+      }
+      if (line) ctx.fillText(line, x, yy);
+    }
+
+    function wrapCenteredTextInBox(ctx, text, x, y, maxWidth, height, lineHeight, maxLines = Infinity) {
+      const lines = getWrappedLines(ctx, text, maxWidth, maxLines);
+      const centerX = x + maxWidth / 2;
+      const startY = y + Math.max(0, (height - lines.length * lineHeight) / 2);
+      lines.forEach((line, index) => {
+        ctx.fillText(line, centerX, startY + index * lineHeight);
+      });
+    }
+
+    function getWrappedLines(ctx, text, maxWidth, maxLines = Infinity) {
+      const chars = String(text || "").split("");
+      let line = "";
+      const lines = [];
+      for (const ch of chars) {
+        const test = line + ch;
+        if (ctx.measureText(test).width > maxWidth && line) {
+          if (lines.length >= maxLines - 1) {
+            lines.push(`${line.slice(0, Math.max(0, line.length - 1))}…`);
+            return lines;
+          }
+          lines.push(line);
+          line = ch;
+        } else {
+          line = test;
+        }
+      }
+      if (line) lines.push(line);
+      return lines;
+    }
+
+    function clamp(v) {
+      const n = Number(v);
+      if (Number.isNaN(n)) return 0;
+      return Math.max(0, Math.min(100, Math.round(n)));
+    }
+
+    function safe(v) {
+      if (v === null || v === undefined || v === "") return "—";
+      if (Array.isArray(v)) return v.length ? v.join("、") : "—";
+      if (typeof v === "object") return JSON.stringify(v, null, 2);
+      return String(v);
+    }
+
+    function limitText(v, maxLen) {
+      const text = safe(v).replace(/\s+/g, "");
+      if (text.length <= maxLen) return text;
+      return text.slice(0, maxLen);
+    }
+
+    function normalizePercent(v) {
+      const n = Number(v);
+      if (Number.isNaN(n)) return 0;
+      return Math.max(0, Math.min(100, Math.round(n)));
+    }
+
+    function normalizeTopicTags(v) {
+      const fallback = ["摆拍认证", "朋友圈教材", "滤镜开会"];
+      const items = Array.isArray(v)
+        ? v
+        : (typeof v === "string" ? v.split(/[、,，|/]/) : []);
+      const tags = items
+        .map((item) => limitText(String(item || "").replace(/[^\u4e00-\u9fa5A-Za-z0-9]/g, ""), 6))
+        .filter(Boolean)
+        .slice(0, 3);
+      while (tags.length < 3) tags.push(fallback[tags.length]);
+      return tags;
+    }
+
+    function round(v, precision = 0) {
+      const factor = 10 ** precision;
+      return Math.round(Number(v) * factor) / factor;
+    }
+
+    function esc(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>
